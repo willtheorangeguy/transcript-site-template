@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import YearGroup from '../../components/YearGroup.astro';
+import { loadAllEpisodes } from '../../utils/content';
+import { groupEpisodesByYear } from '../../utils/episodes';
+
+const allEpisodes = await loadAllEpisodes();
+const episodesByYear = groupEpisodesByYear(allEpisodes);
+const totalCount = allEpisodes.length;
+---
+
+<BaseLayout title="All Episodes" description="Browse all podcast episodes">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">All Episodes</h1>
+      <p class="page-description">
+        {totalCount} episode{totalCount !== 1 ? 's' : ''} across {episodesByYear.size} year{episodesByYear.size !== 1 ? 's' : ''}
+      </p>
+    </header>
+
+    {totalCount > 0 ? (
+      <div class="episodes-archive">
+        {Array.from(episodesByYear.entries()).map(([year, episodes]) => (
+          <YearGroup year={year} episodes={episodes} />
+        ))}
+      </div>
+    ) : (
+      <div class="empty-state">
+        <p>No episodes found. Add markdown files to <code>src/content/episodes/</code> to get started.</p>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .episodes-archive {
+    max-width: var(--content-width);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-3xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-muted);
+  }
+
+  .empty-state code {
+    background-color: var(--color-background);
+    padding: 0.25em 0.5em;
+    border-radius: var(--radius-sm);
+  }
+</style>

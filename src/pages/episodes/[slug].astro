@@ -1,0 +1,150 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EpisodeTabs from '../../components/EpisodeTabs.astro';
+import { loadAllEpisodes, readMarkdownContent } from '../../utils/content';
+import { formatDate } from '../../utils/episodes';
+import { marked } from 'marked';
+
+export async function getStaticPaths() {
+  const episodes = await loadAllEpisodes();
+  
+  return episodes.map((episode) => ({
+    params: { slug: episode.slug },
+    props: { episode },
+  }));
+}
+
+const { episode } = Astro.props;
+
+// Read and render markdown content
+const transcriptMd = readMarkdownContent(episode.transcriptPath);
+const summaryMd = readMarkdownContent(episode.summaryPath);
+
+const transcriptHtml = await marked(transcriptMd);
+const summaryHtml = await marked(summaryMd);
+---
+
+<BaseLayout title={episode.title}>
+  <div class="container">
+    <article class="episode-page">
+      <header class="episode-header">
+        <a href="/episodes" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back to Episodes
+        </a>
+        
+        <div class="episode-meta">
+          <time datetime={episode.date.toISOString()}>{formatDate(episode.date)}</time>
+          {episode.youtubeUrl && (
+            <a href={episode.youtubeUrl} target="_blank" rel="noopener noreferrer" class="youtube-link">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              Watch on YouTube
+            </a>
+          )}
+        </div>
+        
+        <h1 class="episode-title">{episode.title}</h1>
+        
+        {episode.thumbnailUrl && (
+          <img 
+            src={episode.thumbnailUrl} 
+            alt={episode.title}
+            class="episode-thumbnail"
+          />
+        )}
+      </header>
+      
+      <div class="episode-content">
+        <EpisodeTabs 
+          transcriptHtml={transcriptHtml}
+          summaryHtml={summaryHtml}
+        />
+      </div>
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .episode-page {
+    max-width: var(--content-width);
+    margin: 0 auto;
+  }
+
+  .episode-header {
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .episode-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .episode-meta time {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .youtube-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast);
+  }
+
+  .youtube-link:hover {
+    background-color: var(--color-surface-hover);
+    text-decoration: none;
+  }
+
+  .youtube-link svg {
+    color: #ff0000;
+  }
+
+  .episode-title {
+    font-size: var(--font-size-3xl);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .episode-thumbnail {
+    width: 100%;
+    max-width: 640px;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .episode-content {
+    line-height: var(--line-height-relaxed);
+  }
+
+  @media (max-width: 640px) {
+    .episode-title {
+      font-size: var(--font-size-2xl);
+    }
+  }
+</style>

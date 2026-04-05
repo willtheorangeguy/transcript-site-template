@@ -1,0 +1,118 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EpisodeCard from '../components/EpisodeCard.astro';
+import Search from '../components/Search.astro';
+import { loadAllEpisodes } from '../utils/content';
+import { getLatestEpisodes } from '../utils/episodes';
+import config from '../../podcast.config';
+
+const allEpisodes = await loadAllEpisodes();
+const latestEpisodes = getLatestEpisodes(allEpisodes, config.latestEpisodesCount);
+---
+
+<BaseLayout>
+  <div class="container">
+    <section class="hero">
+      <h1 class="hero-title">{config.name}</h1>
+      <p class="hero-description">{config.description}</p>
+      <div class="hero-search">
+        <Search placeholder="Search all episodes..." />
+      </div>
+    </section>
+
+    <section class="latest-episodes">
+      <div class="section-header">
+        <h2>Latest Episodes</h2>
+        <a href="/episodes" class="btn btn-secondary">View All Episodes</a>
+      </div>
+
+      {latestEpisodes.length > 0 ? (
+        <div class="episodes-grid">
+          {latestEpisodes.map((episode) => (
+            <EpisodeCard episode={episode} />
+          ))}
+        </div>
+      ) : (
+        <div class="empty-state">
+          <p>No episodes yet. Add markdown files to <code>src/content/episodes/</code> to get started.</p>
+        </div>
+      )}
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: var(--spacing-3xl) 0;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .hero-title {
+    font-size: var(--font-size-4xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .hero-description {
+    font-size: var(--font-size-xl);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .hero-search {
+    display: flex;
+    justify-content: center;
+  }
+
+  .latest-episodes {
+    padding: var(--spacing-2xl) 0;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+  }
+
+  .section-header h2 {
+    margin: 0;
+  }
+
+  .episodes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-3xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-muted);
+  }
+
+  .empty-state code {
+    background-color: var(--color-background);
+    padding: 0.25em 0.5em;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding: var(--spacing-xl) 0;
+    }
+
+    .hero-title {
+      font-size: var(--font-size-3xl);
+    }
+
+    .hero-description {
+      font-size: var(--font-size-lg);
+    }
+  }
+</style>
