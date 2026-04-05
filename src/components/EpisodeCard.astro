@@ -1,0 +1,120 @@
+---
+import type { Episode } from '../utils/episodes';
+import { formatDate } from '../utils/episodes';
+
+interface Props {
+  episode: Episode;
+}
+
+const { episode } = Astro.props;
+const defaultThumbnail = '/placeholder-episode.svg';
+---
+
+<a href={`/episodes/${episode.slug}`} class="episode-card card">
+  <div class="card-thumbnail">
+    {episode.thumbnailUrl ? (
+      <img 
+        src={episode.thumbnailUrl} 
+        alt={episode.title}
+        loading="lazy"
+      />
+    ) : (
+      <div class="thumbnail-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </div>
+    )}
+  </div>
+  <div class="card-content">
+    <span class="card-date">{formatDate(episode.date)}</span>
+    <h3 class="card-title">{episode.title}</h3>
+    {episode.youtubeUrl && (
+      <span class="card-youtube">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        Watch on YouTube
+      </span>
+    )}
+  </div>
+</a>
+
+<style>
+  .episode-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .episode-card:hover {
+    text-decoration: none;
+    transform: translateY(-2px);
+  }
+
+  .card-thumbnail {
+    aspect-ratio: 16 / 9;
+    background-color: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+  }
+
+  .episode-card:hover .card-thumbnail img {
+    transform: scale(1.05);
+  }
+
+  .thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+  }
+
+  .thumbnail-placeholder svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .card-content {
+    padding: var(--spacing-md);
+  }
+
+  .card-date {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .card-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-sm);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-youtube {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .card-youtube svg {
+    color: #ff0000;
+  }
+</style>

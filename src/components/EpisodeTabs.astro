@@ -1,0 +1,154 @@
+---
+interface Props {
+  transcriptHtml: string;
+  summaryHtml: string;
+}
+
+const { transcriptHtml, summaryHtml } = Astro.props;
+---
+
+<div class="episode-tabs">
+  <div class="tab-buttons" role="tablist">
+    <button 
+      role="tab" 
+      aria-selected="true" 
+      aria-controls="transcript-panel"
+      id="transcript-tab"
+      class="tab-button active"
+      data-tab="transcript"
+    >
+      Transcript
+    </button>
+    <button 
+      role="tab" 
+      aria-selected="false" 
+      aria-controls="summary-panel"
+      id="summary-tab"
+      class="tab-button"
+      data-tab="summary"
+    >
+      Summary
+    </button>
+  </div>
+  
+  <div 
+    role="tabpanel" 
+    id="transcript-panel"
+    aria-labelledby="transcript-tab"
+    class="tab-panel active"
+    data-panel="transcript"
+  >
+    <div class="content" set:html={transcriptHtml} />
+  </div>
+  
+  <div 
+    role="tabpanel" 
+    id="summary-panel"
+    aria-labelledby="summary-tab"
+    class="tab-panel"
+    data-panel="summary"
+    hidden
+  >
+    <div class="content" set:html={summaryHtml} />
+  </div>
+</div>
+
+<script>
+  // Tab switching logic
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-button');
+    const tabPanels = document.querySelectorAll<HTMLElement>('.tab-panel');
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const tabName = button.dataset.tab;
+        
+        // Update buttons
+        tabButtons.forEach((btn) => {
+          btn.classList.remove('active');
+          btn.setAttribute('aria-selected', 'false');
+        });
+        button.classList.add('active');
+        button.setAttribute('aria-selected', 'true');
+        
+        // Update panels
+        tabPanels.forEach((panel) => {
+          if (panel.dataset.panel === tabName) {
+            panel.classList.add('active');
+            panel.removeAttribute('hidden');
+          } else {
+            panel.classList.remove('active');
+            panel.setAttribute('hidden', '');
+          }
+        });
+
+        // Update URL hash for bookmarking
+        history.replaceState(null, '', `#${tabName}`);
+      });
+    });
+
+    // Check URL hash on load
+    const hash = window.location.hash.slice(1);
+    if (hash === 'summary') {
+      const summaryTab = document.querySelector<HTMLButtonElement>('[data-tab="summary"]');
+      summaryTab?.click();
+    }
+  });
+</script>
+
+<style>
+  .episode-tabs {
+    width: 100%;
+  }
+
+  .tab-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .tab-button {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .tab-button:hover {
+    color: var(--color-primary);
+  }
+
+  .tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel.active {
+    display: block;
+  }
+
+  .tab-panel .content {
+    line-height: var(--line-height-relaxed);
+  }
+
+  .tab-panel .content :global(p) {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .tab-panel .content :global(h2),
+  .tab-panel .content :global(h3) {
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
+  }
+</style>

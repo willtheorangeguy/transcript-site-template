@@ -1,0 +1,199 @@
+---
+interface Props {
+  placeholder?: string;
+}
+
+const { placeholder = 'Search episodes...' } = Astro.props;
+---
+
+<div class="search-container">
+  <div class="search-input-wrapper">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+    <input 
+      type="search" 
+      id="search-input"
+      class="search-input"
+      placeholder={placeholder}
+      autocomplete="off"
+    />
+  </div>
+  <div id="search-results" class="search-results"></div>
+</div>
+
+<script is:inline>
+  // Pagefind integration
+  async function initSearch() {
+    const searchInput = document.getElementById('search-input');
+    const resultsContainer = document.getElementById('search-results');
+    
+    if (!searchInput || !resultsContainer) return;
+
+    // Load Pagefind dynamically at runtime
+    let pagefind;
+    try {
+      pagefind = await import('/pagefind/pagefind.js');
+      await pagefind.init();
+    } catch (e) {
+      console.warn('Pagefind not found. Run `npm run build` to generate search index.');
+      resultsContainer.innerHTML = '<p class="search-message">Search will be available after building the site.</p>';
+      return;
+    }
+
+    let debounceTimer;
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(async () => {
+        const query = searchInput.value.trim();
+        
+        if (!query) {
+          resultsContainer.innerHTML = '';
+          return;
+        }
+
+        const results = await pagefind.search(query);
+        
+        if (results.results.length === 0) {
+          resultsContainer.innerHTML = '<p class="search-message">No results found.</p>';
+          return;
+        }
+
+        const html = await Promise.all(
+          results.results.slice(0, 20).map(async (result) => {
+            const data = await result.data();
+            return `
+              <a href="${data.url}" class="search-result">
+                <h3 class="result-title">${data.meta.title || 'Untitled'}</h3>
+                <p class="result-excerpt">${data.excerpt}</p>
+              </a>
+            `;
+          })
+        );
+
+        resultsContainer.innerHTML = html.join('');
+      }, 200);
+    });
+
+    // Close results on click outside
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target as Node) && !resultsContainer.contains(e.target as Node)) {
+        resultsContainer.innerHTML = '';
+      }
+    });
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', initSearch);
+  
+  // Also initialize on Astro page transitions
+  document.addEventListener('astro:page-load', initSearch);
+</script>
+
+<style>
+  .search-container {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: var(--spacing-md);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) * 2 + 20px);
+    font-size: var(--font-size-base);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: var(--spacing-sm);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 50;
+  }
+
+  .search-results:empty {
+    display: none;
+  }
+
+  .search-message {
+    padding: var(--spacing-lg);
+    color: var(--color-text-muted);
+    text-align: center;
+    margin: 0;
+  }
+
+  .search-result {
+    display: block;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .search-result:last-child {
+    border-bottom: none;
+  }
+
+  .search-result:hover {
+    background-color: var(--color-surface);
+    text-decoration: none;
+  }
+
+  .result-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .result-excerpt {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: var(--line-height-normal);
+  }
+
+  .result-excerpt :global(mark) {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: inherit;
+  }
+</style>
