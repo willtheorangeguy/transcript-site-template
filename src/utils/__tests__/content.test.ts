@@ -96,6 +96,63 @@ describe('loadAllEpisodes', () => {
     expect(episodes[0].slug).toMatch(/^2024-03-10-/);
   });
 
+  it('loads a raw-only episode made of .txt files', async () => {
+    const yearDir = path.join(tmpDir, '2023');
+    fs.mkdirSync(yearDir);
+    fs.writeFileSync(
+      path.join(yearDir, '2023-06-01 - Plain Text Episode_transcript.txt'),
+      'Raw transcript text.',
+    );
+    fs.writeFileSync(
+      path.join(yearDir, '2023-06-01 - Plain Text Episode_summary.txt'),
+      'Raw summary text.',
+    );
+
+    const { loadAllEpisodes } = await import('../content?t=' + Date.now());
+    const episodes = await loadAllEpisodes();
+    expect(episodes.length).toBe(1);
+    const ep = episodes[0];
+    expect(ep.transcriptRawPath).toBeTruthy();
+    expect(ep.summaryRawPath).toBeTruthy();
+    expect(ep.transcriptCorrectedPath).toBeUndefined();
+    expect(ep.summaryCorrectedPath).toBeUndefined();
+  });
+
+  it('captures both raw and corrected variants when present', async () => {
+    const yearDir = path.join(tmpDir, '2024');
+    fs.mkdirSync(yearDir);
+    const base = '2024-03-10 - Both Variants Episode';
+    fs.writeFileSync(path.join(yearDir, `${base}_transcript.md`), 'raw t');
+    fs.writeFileSync(path.join(yearDir, `${base}_transcript_corrected.md`), 'corrected t');
+    fs.writeFileSync(path.join(yearDir, `${base}_summary.md`), 'raw s');
+    fs.writeFileSync(path.join(yearDir, `${base}_summary_corrected.md`), 'corrected s');
+
+    const { loadAllEpisodes } = await import('../content?t=' + Date.now());
+    const episodes = await loadAllEpisodes();
+    expect(episodes.length).toBe(1);
+    const ep = episodes[0];
+    expect(ep.transcriptRawPath).toBeTruthy();
+    expect(ep.transcriptCorrectedPath).toBeTruthy();
+    expect(ep.summaryRawPath).toBeTruthy();
+    expect(ep.summaryCorrectedPath).toBeTruthy();
+  });
+
+  it('infers the year from the folder when filenames have no date', async () => {
+    const yearDir = path.join(tmpDir, '2021');
+    fs.mkdirSync(yearDir);
+    fs.writeFileSync(path.join(yearDir, 'Welcome to the Show_transcript.md'), '# T');
+    fs.writeFileSync(path.join(yearDir, 'Welcome to the Show_summary.md'), '# S');
+
+    const { loadAllEpisodes } = await import('../content?t=' + Date.now());
+    const episodes = await loadAllEpisodes();
+    expect(episodes.length).toBe(1);
+    const ep = episodes[0];
+    expect(ep.title).toBe('Welcome to the Show');
+    expect(ep.year).toBe(2021);
+    expect(ep.date.getUTCFullYear()).toBe(2021);
+    expect(ep.slug).toMatch(/^2021-01-01-/);
+  });
+
   it('skips incomplete episodes that are missing a paired file', async () => {
     const yearDir = path.join(tmpDir, '2024');
     fs.mkdirSync(yearDir);

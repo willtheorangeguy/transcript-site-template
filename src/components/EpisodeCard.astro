@@ -1,16 +1,16 @@
 ---
 import type { Episode } from '../utils/episodes';
 import { formatDate } from '../utils/episodes';
+import { withBase } from '../utils/url';
 
 interface Props {
   episode: Episode;
 }
 
 const { episode } = Astro.props;
-const defaultThumbnail = '/placeholder-episode.svg';
 ---
 
-<a href={`/episodes/${episode.slug}`} class="episode-card card">
+<a href={withBase(`/episodes/${episode.slug}`)} class="episode-card card">
   <div class="card-thumbnail">
     {episode.thumbnailUrl ? (
       <img 

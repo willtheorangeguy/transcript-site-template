@@ -4,6 +4,7 @@ import EpisodeCard from '../components/EpisodeCard.astro';
 import Search from '../components/Search.astro';
 import { loadAllEpisodes } from '../utils/content';
 import { getLatestEpisodes } from '../utils/episodes';
+import { withBase } from '../utils/url';
 import config from '../../podcast.config';
 
 const allEpisodes = await loadAllEpisodes();
@@ -23,7 +24,7 @@ const latestEpisodes = getLatestEpisodes(allEpisodes, config.latestEpisodesCount
     <section class="latest-episodes">
       <div class="section-header">
         <h2>Latest Episodes</h2>
-        <a href="/episodes" class="btn btn-secondary">View All Episodes</a>
+        <a href={withBase('/episodes')} class="btn btn-secondary">View All Episodes</a>
       </div>
 
       {latestEpisodes.length > 0 ? (

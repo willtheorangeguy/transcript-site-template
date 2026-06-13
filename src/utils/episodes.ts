@@ -12,10 +12,14 @@ export interface Episode {
   date: Date;
   /** Year folder the episode is in */
   year: number;
-  /** Path to transcript markdown file */
-  transcriptPath: string;
-  /** Path to summary markdown file */
-  summaryPath: string;
+  /** Path to the raw (uncorrected) transcript file, if present */
+  transcriptRawPath?: string;
+  /** Path to the spelling/grammar corrected transcript file, if present */
+  transcriptCorrectedPath?: string;
+  /** Path to the raw (uncorrected) summary file, if present */
+  summaryRawPath?: string;
+  /** Path to the spelling/grammar corrected summary file, if present */
+  summaryCorrectedPath?: string;
   /** YouTube video URL (if available) */
   youtubeUrl?: string;
   /** YouTube thumbnail URL (if available) */
@@ -27,40 +31,60 @@ export interface RawEpisodeFile {
   filename: string;
   year: string;
   type: 'transcript' | 'summary';
+  /** Whether this is the raw or the corrected version of the content */
+  variant: 'raw' | 'corrected';
+  /** File format */
+  format: 'md' | 'txt';
   baseTitle: string;
 }
 
 /**
- * Parse an episode filename to extract metadata
- * Expected format: YYYY-MM-DD - Episode Title_transcript_corrected.md
- * or: YYYY-MM-DD - Episode Title_summary_corrected.md
+ * Parse an episode filename to extract metadata.
+ *
+ * Recognized formats (case-insensitive, .md or .txt):
+ *   YYYY-MM-DD - Episode Title_transcript.md            (raw transcript)
+ *   YYYY-MM-DD - Episode Title_transcript_corrected.md  (corrected transcript)
+ *   YYYY-MM-DD - Episode Title_summary.txt              (raw summary)
+ *   YYYY-MM-DD - Episode Title_summary_corrected.txt    (corrected summary)
+ *
+ * Returns null for any filename that does not match this convention.
  */
 export function parseEpisodeFilename(filename: string, yearFolder: string): RawEpisodeFile | null {
-  const transcriptMatch = filename.match(/^(.+)_transcript_corrected\.md$/i);
-  const summaryMatch = filename.match(/^(.+)_summary_corrected\.md$/i);
+  const match = filename.match(/^(.+?)_(transcript|summary)(_corrected)?\.(md|txt)$/i);
 
-  if (!transcriptMatch && !summaryMatch) {
+  if (!match) {
     return null;
   }
 
-  const isTranscript = !!transcriptMatch;
-  const baseTitle = (transcriptMatch?.[1] || summaryMatch?.[1]) ?? '';
+  const [, baseTitle, typeStr, correctedStr, formatStr] = match;
 
   return {
     path: `${yearFolder}/${filename}`,
     filename,
     year: yearFolder,
-    type: isTranscript ? 'transcript' : 'summary',
+    type: typeStr.toLowerCase() as 'transcript' | 'summary',
+    variant: correctedStr ? 'corrected' : 'raw',
+    format: formatStr.toLowerCase() as 'md' | 'txt',
     baseTitle: baseTitle.trim(),
   };
 }
 
 /**
- * Parse date and title from the base title string
- * Expected format: "YYYY-MM-DD - Episode Title" or "YYYY-MM-DD Episode Title"
+ * Parse title and date from the base title string.
+ *
+ * Titles may optionally start with a full "YYYY-MM-DD" date, but they are not
+ * required to. The episode's year is always taken from the parent year folder,
+ * so when a filename has no date prefix we fall back to that folder's year.
+ *
+ * Examples:
+ *   "2024-05-01 - Episode Title"  -> { title: "Episode Title", date: 2024-05-01 }
+ *   "Episode Title"  (folder 2023) -> { title: "Episode Title", date: 2023-01-01 }
  */
-export function parseTitleAndDate(baseTitle: string): { title: string; date: Date } {
-  // Try to match YYYY-MM-DD at the start
+export function parseTitleAndDate(
+  baseTitle: string,
+  yearFolder: string,
+): { title: string; date: Date } {
+  // Try to match a full YYYY-MM-DD date at the start
   const dateMatch = baseTitle.match(/^(\d{4}-\d{2}-\d{2})\s*[-–—]?\s*(.*)$/);
 
   if (dateMatch) {
@@ -71,10 +95,12 @@ export function parseTitleAndDate(baseTitle: string): { title: string; date: Dat
     };
   }
 
-  // Fallback: no date found, use current date
+  // No date prefix: infer the year from the parent folder and use Jan 1 so the
+  // episode still sorts into the correct year.
+  const year = parseInt(yearFolder, 10);
   return {
     title: baseTitle,
-    date: new Date(),
+    date: new Date(Date.UTC(year, 0, 1)),
   };
 }
 

@@ -1,9 +1,16 @@
 ---
+import { withBase } from '../utils/url';
+
 interface Props {
   placeholder?: string;
 }
 
 const { placeholder = 'Search episodes...' } = Astro.props;
+
+// Pagefind's module and the URLs it returns are relative to the site root the
+// index was built from, so they must be prefixed with the deploy base path.
+const pagefindModuleUrl = withBase('/pagefind/pagefind.js');
+const basePath = import.meta.env.BASE_URL;
 ---
 
 <div class="search-container">
@@ -23,18 +30,26 @@ const { placeholder = 'Search episodes...' } = Astro.props;
   <div id="search-results" class="search-results"></div>
 </div>
 
-<script is:inline>
+<script is:inline define:vars={{ pagefindModuleUrl, basePath }}>
+  // Resolve a Pagefind result URL against the deploy base path.
+  function resolveResultUrl(url) {
+    if (!url || /^https?:\/\//.test(url)) return url;
+    const base = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+    if (base && url.startsWith(base + '/')) return url; // already prefixed
+    return base + (url.startsWith('/') ? url : '/' + url);
+  }
+
   // Pagefind integration
   async function initSearch() {
     const searchInput = document.getElementById('search-input');
     const resultsContainer = document.getElementById('search-results');
-    
+
     if (!searchInput || !resultsContainer) return;
 
     // Load Pagefind dynamically at runtime
     let pagefind;
     try {
-      pagefind = await import('/pagefind/pagefind.js');
+      pagefind = await import(pagefindModuleUrl);
       await pagefind.init();
     } catch (e) {
       console.warn('Pagefind not found. Run `npm run build` to generate search index.');
@@ -65,7 +80,7 @@ const { placeholder = 'Search episodes...' } = Astro.props;
           results.results.slice(0, 20).map(async (result) => {
             const data = await result.data();
             return `
-              <a href="${data.url}" class="search-result">
+              <a href="${resolveResultUrl(data.url)}" class="search-result">
                 <h3 class="result-title">${data.meta.title || 'Untitled'}</h3>
                 <p class="result-excerpt">${data.excerpt}</p>
               </a>

@@ -1,97 +1,176 @@
 ---
 interface Props {
-  transcriptHtml: string;
-  summaryHtml: string;
+  transcriptRawHtml?: string;
+  transcriptCorrectedHtml?: string;
+  summaryRawHtml?: string;
+  summaryCorrectedHtml?: string;
 }
 
-const { transcriptHtml, summaryHtml } = Astro.props;
+const {
+  transcriptRawHtml,
+  transcriptCorrectedHtml,
+  summaryRawHtml,
+  summaryCorrectedHtml,
+} = Astro.props;
+
+type ContentType = 'transcript' | 'summary';
+type Version = 'corrected' | 'raw';
+
+const variants: Record<ContentType, Record<Version, string | undefined>> = {
+  transcript: { corrected: transcriptCorrectedHtml, raw: transcriptRawHtml },
+  summary: { corrected: summaryCorrectedHtml, raw: summaryRawHtml },
+};
+
+const typeLabels: Record<ContentType, string> = {
+  transcript: 'Transcript',
+  summary: 'Summary',
+};
+const versionLabels: Record<Version, string> = {
+  corrected: 'Corrected',
+  raw: 'Raw',
+};
+
+// Only offer tabs/toggles that actually have content.
+const types = (['transcript', 'summary'] as ContentType[]).filter(
+  (t) => variants[t].corrected || variants[t].raw,
+);
+const versions: Version[] = ['corrected', 'raw'];
+
+const defaultType = types[0];
+const defaultVersion: Version = variants[defaultType]?.corrected ? 'corrected' : 'raw';
 ---
 
 <div class="episode-tabs">
-  <div class="tab-buttons" role="tablist">
-    <button 
-      role="tab" 
-      aria-selected="true" 
-      aria-controls="transcript-panel"
-      id="transcript-tab"
-      class="tab-button active"
-      data-tab="transcript"
-    >
-      Transcript
-    </button>
-    <button 
-      role="tab" 
-      aria-selected="false" 
-      aria-controls="summary-panel"
-      id="summary-tab"
-      class="tab-button"
-      data-tab="summary"
-    >
-      Summary
-    </button>
+  <div class="tabs-bar">
+    {types.length > 1 && (
+      <div class="tab-buttons" role="tablist" aria-label="Content type">
+        {types.map((type) => (
+          <button
+            role="tab"
+            type="button"
+            class:list={['tab-button', { active: type === defaultType }]}
+            data-tab={type}
+            aria-selected={type === defaultType ? 'true' : 'false'}
+          >
+            {typeLabels[type]}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <div class="version-toggle" role="group" aria-label="Transcript version">
+      {versions.map((version) => {
+        const available = !!variants[defaultType]?.[version];
+        return (
+          <button
+            type="button"
+            class:list={['version-button', { active: available && version === defaultVersion }]}
+            data-version={version}
+            aria-pressed={available && version === defaultVersion ? 'true' : 'false'}
+            disabled={!available}
+          >
+            {versionLabels[version]}
+          </button>
+        );
+      })}
+    </div>
   </div>
-  
-  <div 
-    role="tabpanel" 
-    id="transcript-panel"
-    aria-labelledby="transcript-tab"
-    class="tab-panel active"
-    data-panel="transcript"
-  >
-    <div class="content" set:html={transcriptHtml} />
-  </div>
-  
-  <div 
-    role="tabpanel" 
-    id="summary-panel"
-    aria-labelledby="summary-tab"
-    class="tab-panel"
-    data-panel="summary"
-    hidden
-  >
-    <div class="content" set:html={summaryHtml} />
-  </div>
+
+  {types.map((type) =>
+    versions.map((version) =>
+      variants[type][version] ? (
+        <div
+          role="tabpanel"
+          class:list={[
+            'tab-panel',
+            { active: type === defaultType && version === defaultVersion },
+          ]}
+          data-type={type}
+          data-version={version}
+          hidden={!(type === defaultType && version === defaultVersion)}
+        >
+          <div class="content" set:html={variants[type][version]} />
+        </div>
+      ) : null,
+    ),
+  )}
 </div>
 
 <script>
-  // Tab switching logic
-  document.addEventListener('DOMContentLoaded', () => {
-    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-button');
-    const tabPanels = document.querySelectorAll<HTMLElement>('.tab-panel');
+  document.querySelectorAll<HTMLElement>('.episode-tabs').forEach((root) => {
+    const typeButtons = root.querySelectorAll<HTMLButtonElement>('.tab-button');
+    const versionButtons = root.querySelectorAll<HTMLButtonElement>('.version-button');
+    const panels = root.querySelectorAll<HTMLElement>('.tab-panel');
 
-    tabButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const tabName = button.dataset.tab;
-        
-        // Update buttons
-        tabButtons.forEach((btn) => {
-          btn.classList.remove('active');
-          btn.setAttribute('aria-selected', 'false');
-        });
-        button.classList.add('active');
-        button.setAttribute('aria-selected', 'true');
-        
-        // Update panels
-        tabPanels.forEach((panel) => {
-          if (panel.dataset.panel === tabName) {
-            panel.classList.add('active');
-            panel.removeAttribute('hidden');
-          } else {
-            panel.classList.remove('active');
-            panel.setAttribute('hidden', '');
-          }
-        });
+    const firstActiveType = root.querySelector<HTMLButtonElement>('.tab-button.active');
+    const firstActiveVersion = root.querySelector<HTMLButtonElement>('.version-button.active');
 
-        // Update URL hash for bookmarking
-        history.replaceState(null, '', `#${tabName}`);
+    let currentType = firstActiveType?.dataset.tab
+      ?? panels[0]?.dataset.type
+      ?? 'transcript';
+    let currentVersion = firstActiveVersion?.dataset.version
+      ?? panels[0]?.dataset.version
+      ?? 'corrected';
+
+    const hasPanel = (type: string, version: string) =>
+      !!root.querySelector(`.tab-panel[data-type="${type}"][data-version="${version}"]`);
+
+    function render() {
+      // Fall back to whichever version exists for the selected type.
+      if (!hasPanel(currentType, currentVersion)) {
+        currentVersion = currentVersion === 'corrected' ? 'raw' : 'corrected';
+      }
+
+      typeButtons.forEach((btn) => {
+        const isActive = btn.dataset.tab === currentType;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+      });
+
+      versionButtons.forEach((btn) => {
+        const version = btn.dataset.version!;
+        const available = hasPanel(currentType, version);
+        btn.disabled = !available;
+        const isActive = available && version === currentVersion;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
+      });
+
+      panels.forEach((panel) => {
+        const show =
+          panel.dataset.type === currentType && panel.dataset.version === currentVersion;
+        panel.classList.toggle('active', show);
+        if (show) {
+          panel.removeAttribute('hidden');
+        } else {
+          panel.setAttribute('hidden', '');
+        }
+      });
+
+      history.replaceState(null, '', `#${currentType}-${currentVersion}`);
+    }
+
+    typeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentType = btn.dataset.tab!;
+        render();
       });
     });
 
-    // Check URL hash on load
-    const hash = window.location.hash.slice(1);
-    if (hash === 'summary') {
-      const summaryTab = document.querySelector<HTMLButtonElement>('[data-tab="summary"]');
-      summaryTab?.click();
+    versionButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        currentVersion = btn.dataset.version!;
+        render();
+      });
+    });
+
+    // Restore state from the URL hash (e.g. #summary-raw).
+    const [hashType, hashVersion] = window.location.hash.slice(1).split('-');
+    if (hashType && hasPanel(hashType, hashVersion ?? currentVersion)) {
+      currentType = hashType;
+      if (hashVersion) currentVersion = hashVersion;
+      render();
     }
   });
 </script>
@@ -101,11 +180,19 @@ const { transcriptHtml, summaryHtml } = Astro.props;
     width: 100%;
   }
 
+  .tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-xl);
+  }
+
   .tab-buttons {
     display: flex;
     gap: var(--spacing-sm);
-    border-bottom: 2px solid var(--color-border);
-    margin-bottom: var(--spacing-xl);
   }
 
   .tab-button {
@@ -128,6 +215,43 @@ const { transcriptHtml, summaryHtml } = Astro.props;
   .tab-button.active {
     color: var(--color-primary);
     border-bottom-color: var(--color-primary);
+  }
+
+  .version-toggle {
+    display: inline-flex;
+    margin-bottom: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .version-button {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .version-button + .version-button {
+    border-left: 1px solid var(--color-border);
+  }
+
+  .version-button:hover:not(:disabled) {
+    color: var(--color-primary);
+  }
+
+  .version-button.active {
+    color: #fff;
+    background: var(--color-primary);
+  }
+
+  .version-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .tab-panel {

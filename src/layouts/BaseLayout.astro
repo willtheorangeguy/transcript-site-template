@@ -1,5 +1,6 @@
 ---
 import config from '../../podcast.config';
+import { withBase } from '../utils/url';
 
 interface Props {
   title?: string;
@@ -32,17 +33,17 @@ const pageDescription = description || config.description;
     
     <title>{pageTitle}</title>
     
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
   </head>
   <body>
     <slot name="header">
       <header class="site-header">
         <div class="container header-inner">
-          <a href="/" class="site-logo">{config.name}</a>
+          <a href={withBase('/')} class="site-logo">{config.name}</a>
           <nav class="main-nav">
-            <a href="/">Home</a>
-            <a href="/episodes">Episodes</a>
-            <a href="/search">Search</a>
+            <a href={withBase('/')}>Home</a>
+            <a href={withBase('/episodes')}>Episodes</a>
+            <a href={withBase('/search')}>Search</a>
             {config.extraNavLinks?.map((link) => (
               <a href={link.href}>{link.label}</a>
             ))}

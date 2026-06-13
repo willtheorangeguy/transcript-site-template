@@ -4,7 +4,8 @@ A reusable Astro template for creating podcast websites from markdown transcript
 
 ## Features
 
-- 📄 **Markdown-based content** - Add transcript and summary files, the site builds automatically
+- 📄 **Markdown or plain-text content** - Add `.md` or `.txt` transcript and summary files, the site builds automatically
+- 🔀 **Raw / corrected toggle** - Ships both the raw and the spelling/grammar-corrected versions and lets readers switch between them
 - 🔍 **Full-text search** - Search through all episode transcripts with Pagefind
 - 🎨 **Customizable theming** - CSS custom properties for easy per-podcast styling
 - 📺 **YouTube integration** - Optional YouTube API support for video thumbnails and links
@@ -49,9 +50,21 @@ your-podcast-project/
 
 ### File Naming Convention
 
-Each episode needs two files:
-- `{date} - {title}_transcript_corrected.md` - Full transcript
-- `{date} - {title}_summary_corrected.md` - Episode summary
+Each episode is built from transcript and summary files. Both `.md` and `.txt`
+are supported, and each can come in a raw and/or a corrected version:
+
+| File | Meaning |
+|------|---------|
+| `{date} - {title}_transcript.md` | Raw transcript |
+| `{date} - {title}_transcript_corrected.md` | Spelling/grammar-corrected transcript |
+| `{date} - {title}_summary.txt` | Raw summary |
+| `{date} - {title}_summary_corrected.txt` | Corrected summary |
+
+An episode is published as long as it has **at least one transcript and one
+summary** (either variant). When both a raw and a corrected version exist, the
+episode page shows a **Raw / Corrected** toggle; the corrected version is shown
+by default, and the toggle option for a missing variant is disabled. If both
+`.md` and `.txt` exist for the same variant, the `.md` file is used.
 
 The date should be in `YYYY-MM-DD` format at the start of the filename.
 
@@ -123,48 +136,29 @@ This caches video data in `.youtube-cache.json`. The build process matches episo
 
 ## Deployment
 
-### GitHub Pages
+### GitHub Pages (from your transcript repo)
 
-1. In your repo settings, set Pages source to "GitHub Actions"
-2. Create `.github/workflows/deploy.yml`:
+This is the intended setup: one repo containing your year folders **and** this
+template in a `web/` subfolder. The whole site — including search — is fully
+static, so GitHub Pages serves it with no server.
 
-```yaml
-name: Deploy to GitHub Pages
+1. In your repo settings, set **Pages → Source** to "GitHub Actions".
+2. Copy [`web/.github/workflows/deploy-transcript-repo.yml.example`](.github/workflows/deploy-transcript-repo.yml.example)
+   into your repo as `.github/workflows/deploy.yaml` (drop the `.example` suffix).
+   It builds from `web/`, uploads `web/dist`, and passes the Pages `SITE` /
+   `BASE_PATH` values to the build.
+3. Push to `main`.
 
-on:
-  push:
-    branches: [main]
+**Project subpaths just work.** When the site is served from a project page
+(`https://<user>.github.io/<repo>/`), the workflow supplies `BASE_PATH` and
+`astro.config.mjs` reads it into Astro's `base`. All internal links, assets, the
+favicon, and the Pagefind search index are prefixed automatically via the
+`withBase()` helper (`src/utils/url.ts`), so no custom domain is required. A
+user/org page or custom domain (served at the root) also works with no changes.
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/deploy-pages@v4
-        id: deployment
-```
+> The `deploy.yaml` already in this template repo builds the template
+> standalone (from the repo root) for previewing the empty template — it is
+> **not** the one to copy into a transcript repo. Use the `.example` file above.
 
 ### Netlify / Vercel
 

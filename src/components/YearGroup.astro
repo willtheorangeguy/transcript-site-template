@@ -1,5 +1,6 @@
 ---
 import type { Episode } from '../utils/episodes';
+import { withBase } from '../utils/url';
 
 interface Props {
   year: number;
@@ -14,7 +15,7 @@ const { year, episodes } = Astro.props;
   <ul class="episode-list">
     {episodes.map((episode) => (
       <li class="episode-item">
-        <a href={`/episodes/${episode.slug}`} class="episode-link">
+        <a href={withBase(`/episodes/${episode.slug}`)} class="episode-link">
           <span class="episode-date">
             {episode.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>

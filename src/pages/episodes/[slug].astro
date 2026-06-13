@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import EpisodeTabs from '../../components/EpisodeTabs.astro';
 import { loadAllEpisodes, readMarkdownContent } from '../../utils/content';
 import { formatDate } from '../../utils/episodes';
+import { withBase } from '../../utils/url';
 import { marked } from 'marked';
 
 export async function getStaticPaths() {
@@ -16,19 +17,22 @@ export async function getStaticPaths() {
 
 const { episode } = Astro.props;
 
-// Read and render markdown content
-const transcriptMd = readMarkdownContent(episode.transcriptPath);
-const summaryMd = readMarkdownContent(episode.summaryPath);
+// Render each available variant (raw / corrected) for transcript and summary.
+// marked() handles plain .txt content too (it becomes paragraphs).
+const renderIfPresent = async (filePath?: string) =>
+  filePath ? await marked(readMarkdownContent(filePath)) : undefined;
 
-const transcriptHtml = await marked(transcriptMd);
-const summaryHtml = await marked(summaryMd);
+const transcriptRawHtml = await renderIfPresent(episode.transcriptRawPath);
+const transcriptCorrectedHtml = await renderIfPresent(episode.transcriptCorrectedPath);
+const summaryRawHtml = await renderIfPresent(episode.summaryRawPath);
+const summaryCorrectedHtml = await renderIfPresent(episode.summaryCorrectedPath);
 ---
 
 <BaseLayout title={episode.title}>
   <div class="container">
     <article class="episode-page">
       <header class="episode-header">
-        <a href="/episodes" class="back-link">
+        <a href={withBase('/episodes')} class="back-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
             <path d="m15 18-6-6 6-6" />
           </svg>
@@ -59,9 +63,11 @@ const summaryHtml = await marked(summaryMd);
       </header>
       
       <div class="episode-content">
-        <EpisodeTabs 
-          transcriptHtml={transcriptHtml}
-          summaryHtml={summaryHtml}
+        <EpisodeTabs
+          transcriptRawHtml={transcriptRawHtml}
+          transcriptCorrectedHtml={transcriptCorrectedHtml}
+          summaryRawHtml={summaryRawHtml}
+          summaryCorrectedHtml={summaryCorrectedHtml}
         />
       </div>
     </article>

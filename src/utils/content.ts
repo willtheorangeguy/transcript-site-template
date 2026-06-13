@@ -83,17 +83,31 @@ export async function loadAllEpisodes(): Promise<Episode[]> {
 
   // Create episodes from paired files
   for (const [key, files] of filesByBaseTitle) {
-    const transcript = files.find((f) => f.type === 'transcript');
-    const summary = files.find((f) => f.type === 'summary');
+    // A single episode may have up to four files: raw/corrected × transcript/summary.
+    // Prefer markdown over txt when both formats exist for the same variant.
+    const pick = (type: 'transcript' | 'summary', variant: 'raw' | 'corrected') => {
+      const matches = files.filter((f) => f.type === type && f.variant === variant);
+      return matches.find((f) => f.format === 'md') ?? matches[0];
+    };
 
-    // Skip if we don't have both files
-    if (!transcript || !summary) {
-      console.warn(`Skipping incomplete episode: ${key} (missing ${!transcript ? 'transcript' : 'summary'})`);
+    const transcriptRaw = pick('transcript', 'raw');
+    const transcriptCorrected = pick('transcript', 'corrected');
+    const summaryRaw = pick('summary', 'raw');
+    const summaryCorrected = pick('summary', 'corrected');
+
+    const anyTranscript = transcriptCorrected ?? transcriptRaw;
+    const anySummary = summaryCorrected ?? summaryRaw;
+
+    // An episode needs at least one transcript and one summary (either variant).
+    if (!anyTranscript || !anySummary) {
+      console.warn(
+        `Skipping incomplete episode: ${key} (missing ${!anyTranscript ? 'transcript' : 'summary'})`,
+      );
       continue;
     }
 
-    const { title, date } = parseTitleAndDate(transcript.baseTitle);
-    const year = parseInt(transcript.year, 10);
+    const { title, date } = parseTitleAndDate(anyTranscript.baseTitle, anyTranscript.year);
+    const year = parseInt(anyTranscript.year, 10);
     const slug = createSlug(title, date);
 
     // Match to YouTube video
@@ -113,8 +127,14 @@ export async function loadAllEpisodes(): Promise<Episode[]> {
       title,
       date,
       year,
-      transcriptPath: path.join(CONTENT_DIR, transcript.path),
-      summaryPath: path.join(CONTENT_DIR, summary.path),
+      transcriptRawPath: transcriptRaw ? path.join(CONTENT_DIR, transcriptRaw.path) : undefined,
+      transcriptCorrectedPath: transcriptCorrected
+        ? path.join(CONTENT_DIR, transcriptCorrected.path)
+        : undefined,
+      summaryRawPath: summaryRaw ? path.join(CONTENT_DIR, summaryRaw.path) : undefined,
+      summaryCorrectedPath: summaryCorrected
+        ? path.join(CONTENT_DIR, summaryCorrected.path)
+        : undefined,
       youtubeUrl,
       thumbnailUrl,
     });

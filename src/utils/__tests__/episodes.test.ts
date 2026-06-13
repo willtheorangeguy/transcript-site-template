@@ -46,6 +46,42 @@ describe('parseEpisodeFilename', () => {
     const result = parseEpisodeFilename('Episode_TRANSCRIPT_CORRECTED.md', '2024');
     expect(result).not.toBeNull();
     expect(result?.type).toBe('transcript');
+    expect(result?.variant).toBe('corrected');
+  });
+
+  it('parses a raw (uncorrected) transcript', () => {
+    const result = parseEpisodeFilename('2024-01-15 - My Episode_transcript.md', '2024');
+    expect(result?.type).toBe('transcript');
+    expect(result?.variant).toBe('raw');
+    expect(result?.format).toBe('md');
+    expect(result?.baseTitle).toBe('2024-01-15 - My Episode');
+  });
+
+  it('parses a raw summary', () => {
+    const result = parseEpisodeFilename('2024-01-15 - My Episode_summary.md', '2024');
+    expect(result?.type).toBe('summary');
+    expect(result?.variant).toBe('raw');
+  });
+
+  it('marks the corrected variant on _corrected files', () => {
+    const result = parseEpisodeFilename('2024-01-15 - My Episode_transcript_corrected.md', '2024');
+    expect(result?.variant).toBe('corrected');
+  });
+
+  it('parses .txt files in both variants', () => {
+    const raw = parseEpisodeFilename('Ep_transcript.txt', '2024');
+    expect(raw?.format).toBe('txt');
+    expect(raw?.variant).toBe('raw');
+
+    const corrected = parseEpisodeFilename('Ep_summary_corrected.txt', '2024');
+    expect(corrected?.format).toBe('txt');
+    expect(corrected?.variant).toBe('corrected');
+    expect(corrected?.type).toBe('summary');
+  });
+
+  it('returns null for unsupported extensions', () => {
+    expect(parseEpisodeFilename('Ep_transcript.pdf', '2024')).toBeNull();
+    expect(parseEpisodeFilename('Ep_transcript.docx', '2024')).toBeNull();
   });
 
   it('builds the path from year folder and filename', () => {
@@ -71,7 +107,7 @@ describe('parseEpisodeFilename', () => {
 
 describe('parseTitleAndDate', () => {
   it('parses standard "YYYY-MM-DD - Title" format', () => {
-    const { title, date } = parseTitleAndDate('2024-01-15 - My Episode Title');
+    const { title, date } = parseTitleAndDate('2024-01-15 - My Episode Title', '2024');
     expect(title).toBe('My Episode Title');
     expect(date.getUTCFullYear()).toBe(2024);
     expect(date.getUTCMonth()).toBe(0); // January
@@ -79,35 +115,40 @@ describe('parseTitleAndDate', () => {
   });
 
   it('parses with an em dash separator', () => {
-    const { title } = parseTitleAndDate('2024-03-20 — Another Episode');
+    const { title } = parseTitleAndDate('2024-03-20 — Another Episode', '2024');
     expect(title).toBe('Another Episode');
   });
 
   it('parses with an en dash separator', () => {
-    const { title } = parseTitleAndDate('2024-03-20 – Yet Another Episode');
+    const { title } = parseTitleAndDate('2024-03-20 – Yet Another Episode', '2024');
     expect(title).toBe('Yet Another Episode');
   });
 
   it('parses date with no separator (space only)', () => {
-    const { title, date } = parseTitleAndDate('2024-06-01 Title Without Dash');
+    const { title, date } = parseTitleAndDate('2024-06-01 Title Without Dash', '2024');
     expect(date.getUTCFullYear()).toBe(2024);
     expect(title).toBe('Title Without Dash');
   });
 
   it('falls back to the base title when the date-only string has no title', () => {
-    const { title, date } = parseTitleAndDate('2024-01-15');
+    const { title, date } = parseTitleAndDate('2024-01-15', '2024');
     expect(date.getUTCFullYear()).toBe(2024);
     // When title part is empty the baseTitle itself is used as fallback
     expect(title).toBe('2024-01-15');
   });
 
-  it('falls back to current date when no date prefix is found', () => {
-    const before = new Date();
-    const { title, date } = parseTitleAndDate('No Date In This Title');
-    const after = new Date();
+  it('infers the year from the folder when no date prefix is found', () => {
+    const { title, date } = parseTitleAndDate('No Date In This Title', '2021');
     expect(title).toBe('No Date In This Title');
-    expect(date.getTime()).toBeGreaterThanOrEqual(before.getTime());
-    expect(date.getTime()).toBeLessThanOrEqual(after.getTime());
+    expect(date.getUTCFullYear()).toBe(2021);
+    expect(date.getUTCMonth()).toBe(0); // January
+    expect(date.getUTCDate()).toBe(1);
+  });
+
+  it('keeps the full title when it has no date but contains numbers', () => {
+    const { title, date } = parseTitleAndDate('Episode 42 - The Answer', '2022');
+    expect(title).toBe('Episode 42 - The Answer');
+    expect(date.getUTCFullYear()).toBe(2022);
   });
 });
 
@@ -157,8 +198,6 @@ function makeEpisode(year: number, month: number, day: number, title: string): E
     title,
     date: new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00Z`),
     year,
-    transcriptPath: '',
-    summaryPath: '',
   };
 }
 
