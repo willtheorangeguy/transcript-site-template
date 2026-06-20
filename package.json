@@ -16,7 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "astro": "^6.4.2",
+    "astro": "^6.4.6",
     "marked": "^18.0.2",
     "pagefind": "^1.5.0"
   },
