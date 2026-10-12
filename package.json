@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "http-cache-semantics": "file:vendor/http-cache-semantics"
   }
 }
