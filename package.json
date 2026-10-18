@@ -16,7 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "astro": "^7.2.8",
+    "astro": "^7.3.8",
     "http-cache-semantics": "file:vendor/http-cache-semantics",
     "marked": "^18.0.2",
     "pagefind": "^1.5.0"
